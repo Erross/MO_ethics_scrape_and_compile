@@ -4,10 +4,12 @@ Missouri Ethics Commission Campaign Finance Report Scraper
 This module provides functionality to search for committees and download
 their quarterly campaign finance reports from the MEC website.
 
-VERSION: 2.0 - Updated 2025-09-15 14:40 EST
-- Fixed btn-link selector approach
-- Added 5-second wait after expansion
-- Removed committee_dir undefined error
+VERSION: 2.1 - Updated 2025-09-15 - ENHANCED LINK DETECTION ONLY
+- Built on Version 2.0 foundation
+- Enhanced link detection with multiple selectors and debugging
+- Added detailed logging of what elements ARE found
+- Test clicking ONE link only (no downloads yet)
+- Baby steps approach - don't break existing functionality
 """
 
 import logging
@@ -32,13 +34,29 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 # Add parent directory to path to import config
 sys.path.append(str(Path(__file__).parent.parent))
-from config import SCRAPER_CONFIG, MEC_SEARCH_URL, DOWNLOADS_DIR, CACHE_DIR, LOGGING_CONFIG
+try:
+    from config import SCRAPER_CONFIG, MEC_SEARCH_URL, DOWNLOADS_DIR, CACHE_DIR, LOGGING_CONFIG
+except ImportError:
+    # Fallback defaults if config.py doesn't exist
+    SCRAPER_CONFIG = {
+        'headless': True,
+        'page_load_timeout': 30,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    MEC_SEARCH_URL = "https://mec.mo.gov/MEC/Campaign_Finance/CFSearch.aspx"
+    DOWNLOADS_DIR = Path("downloads")
+    CACHE_DIR = Path("cache")
+    LOGGING_CONFIG = {
+        'level': 'INFO',
+        'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        'file': 'mec_scraper.log'
+    }
 
 
 class MECReportScraper:
     """
     Main scraper class for extracting campaign finance reports from Missouri Ethics Commission
-    VERSION: 2.0 - 2025-09-15 14:40 EST
+    VERSION: 2.1 - Enhanced Link Detection Only
     """
 
     def __init__(self, headless: bool = None, output_dir: str = None):
@@ -66,7 +84,7 @@ class MECReportScraper:
         self.driver = None
         self._setup_selenium()
 
-        self.logger.info("MEC Scraper v2.0 initialized - 2025-09-15 14:40 EST")
+        self.logger.info("MEC Scraper v2.1 initialized - 2025-09-15 with enhanced link detection")
 
     def _setup_logging(self):
         """Setup logging configuration"""
@@ -234,7 +252,7 @@ class MECReportScraper:
     def get_committee_reports(self, committee_url: str) -> List[Dict]:
         """
         Navigate to committee page and extract all available reports
-        VERSION 2.0 - Fixed btn-link detection with proper wait times
+        VERSION 2.1 - ENHANCED LINK DETECTION with detailed debugging
 
         Args:
             committee_url: URL to committee information page
@@ -242,7 +260,7 @@ class MECReportScraper:
         Returns:
             List of report information dictionaries
         """
-        self.logger.info(f"[v2.0] Getting reports from: {committee_url}")
+        self.logger.info(f"[v2.1] Getting reports from: {committee_url}")
 
         try:
             # Navigate to committee page
@@ -261,13 +279,13 @@ class MECReportScraper:
             all_reports = []
 
             # Find the main reports table
-            self.logger.info("[v2.0] Looking for reports table...")
+            self.logger.info("[v2.1] Looking for reports table...")
 
             try:
                 reports_table = self.driver.find_element(By.ID, "ContentPlaceHolder_ContentPlaceHolder1_grvReportOutside")
-                self.logger.info("[v2.0] Found main reports table")
+                self.logger.info("[v2.1] Found main reports table")
             except NoSuchElementException:
-                self.logger.error("[v2.0] Could not find main reports table")
+                self.logger.error("[v2.1] Could not find main reports table")
                 return []
 
             # Process each year one at a time to avoid stale element issues
@@ -275,7 +293,7 @@ class MECReportScraper:
 
             for year in years_to_process:
                 try:
-                    self.logger.info(f"[v2.0] Processing year: {year}")
+                    self.logger.info(f"[v2.1] Processing year: {year}")
 
                     # Re-find the expand button for this year (avoid stale elements)
                     expand_button = None
@@ -303,84 +321,159 @@ class MECReportScraper:
                     expand_button.click()
 
                     # CRITICAL: Wait 5 seconds for content to load (user's feedback)
-                    self.logger.info(f"[v2.0] Waiting 5 seconds for {year} content to load...")
+                    self.logger.info(f"[v2.1] Waiting 5 seconds for {year} content to load...")
                     time.sleep(5)
 
-                    # Look for report links using NEW v2.0 selectors
-                    self.logger.info(f"[v2.0] Looking for report links in {year}...")
+                    # ENHANCED LINK DETECTION - VERSION 2.1
+                    self.logger.info(f"[v2.1] === ENHANCED LINK DETECTION FOR {year} ===")
 
                     potential_report_links = []
 
-                    # Method 1: Look for btn-link class (from user's manual inspection)
+                    # DEBUGGING: First, let's see what elements ARE present on the page
+                    self.logger.info(f"[v2.1] === DEBUGGING: What's on the page after expanding {year} ===")
+
+                    # Method 0: Debug - show all links on page
+                    all_links = self.driver.find_elements(By.TAG_NAME, "a")
+                    self.logger.info(f"[v2.1] DEBUG: Total <a> links on page: {len(all_links)}")
+
+                    # Show first 10 links for debugging
+                    for i, link in enumerate(all_links[:10]):
+                        link_text = link.text.strip()[:30]  # First 30 chars
+                        link_href = link.get_attribute('href') or 'no-href'
+                        link_id = link.get_attribute('id') or 'no-id'
+                        link_class = link.get_attribute('class') or 'no-class'
+                        data_cpid = link.get_attribute('data-cpid') or 'no-data-cpid'
+                        self.logger.info(f"[v2.1] DEBUG Link {i}: text='{link_text}' id='{link_id}' class='{link_class}' data-cpid='{data_cpid}'")
+
+                    # Method 1: Look for btn-link class (original approach)
                     btn_links = self.driver.find_elements(By.CSS_SELECTOR, "a.btn-link")
-                    self.logger.info(f"[v2.0] Found {len(btn_links)} btn-link elements for {year}")
+                    self.logger.info(f"[v2.1] Method 1 - Found {len(btn_links)} 'a.btn-link' elements for {year}")
 
                     for link in btn_links:
                         href = link.get_attribute('href')
                         text = link.text.strip()
                         data_cpid = link.get_attribute('data-cpid')
+                        link_id = link.get_attribute('id')
 
                         if text and (data_cpid or text.isdigit()):
-                            potential_report_links.append((href or f"javascript:void(0)", text))
-                            self.logger.info(f"[v2.0] Found btn-link report: {text} (data-cpid: {data_cpid})")
+                            potential_report_links.append((href or f"javascript:void(0)", text, f"btn-link id={link_id} cpid={data_cpid}"))
+                            self.logger.info(f"[v2.1] Method 1 SUCCESS: {text} (data-cpid: {data_cpid}, id: {link_id})")
 
-                    # Method 2: Look for links with grvReports in ID
-                    if not potential_report_links:
-                        grvreport_links = self.driver.find_elements(By.CSS_SELECTOR, "a[id*='grvReports']")
-                        self.logger.info(f"[v2.0] Found {len(grvreport_links)} grvReports links for {year}")
+                    # Method 2: Look for data-cpid attribute directly
+                    cpid_links = self.driver.find_elements(By.CSS_SELECTOR, "a[data-cpid]")
+                    self.logger.info(f"[v2.1] Method 2 - Found {len(cpid_links)} 'a[data-cpid]' elements for {year}")
 
-                        for link in grvreport_links:
-                            href = link.get_attribute('href')
-                            text = link.text.strip()
-                            if text:
-                                potential_report_links.append((href or f"javascript:void(0)", text))
-                                self.logger.info(f"[v2.0] Found grvReports link: {text}")
+                    for link in cpid_links:
+                        href = link.get_attribute('href')
+                        text = link.text.strip()
+                        data_cpid = link.get_attribute('data-cpid')
+                        link_id = link.get_attribute('id')
 
-                    # Method 3: Look for blue underlined links in tables
-                    if not potential_report_links:
-                        blue_links = self.driver.find_elements(By.CSS_SELECTOR, "table a[style*='color:Blue']")
-                        self.logger.info(f"[v2.0] Found {len(blue_links)} blue table links for {year}")
+                        if text and data_cpid:
+                            potential_report_links.append((href or f"javascript:void(0)", text, f"data-cpid id={link_id} cpid={data_cpid}"))
+                            self.logger.info(f"[v2.1] Method 2 SUCCESS: {text} (data-cpid: {data_cpid}, id: {link_id})")
 
-                        for link in blue_links:
-                            href = link.get_attribute('href')
-                            text = link.text.strip()
-                            if text and text.isdigit():
-                                potential_report_links.append((href or f"javascript:void(0)", text))
-                                self.logger.info(f"[v2.0] Found blue link: {text}")
+                    # Method 3: Look for links with grvReports in ID
+                    grvreport_links = self.driver.find_elements(By.CSS_SELECTOR, "a[id*='grvReports']")
+                    self.logger.info(f"[v2.1] Method 3 - Found {len(grvreport_links)} 'a[id*=grvReports]' links for {year}")
+
+                    for link in grvreport_links:
+                        href = link.get_attribute('href')
+                        text = link.text.strip()
+                        link_id = link.get_attribute('id')
+                        if text:
+                            potential_report_links.append((href or f"javascript:void(0)", text, f"grvReports id={link_id}"))
+                            self.logger.info(f"[v2.1] Method 3 SUCCESS: {text} (id: {link_id})")
+
+                    # Method 4: Look for blue underlined links in tables
+                    blue_links = self.driver.find_elements(By.CSS_SELECTOR, "table a[style*='color:Blue']")
+                    self.logger.info(f"[v2.1] Method 4 - Found {len(blue_links)} 'table a[style*=color:Blue]' links for {year}")
+
+                    for link in blue_links:
+                        href = link.get_attribute('href')
+                        text = link.text.strip()
+                        link_id = link.get_attribute('id')
+                        if text and text.isdigit():
+                            potential_report_links.append((href or f"javascript:void(0)", text, f"blue-link id={link_id}"))
+                            self.logger.info(f"[v2.1] Method 4 SUCCESS: {text} (id: {link_id})")
+
+                    # Method 5: Look for ANY link with numeric text that could be a report ID
+                    numeric_links = []
+                    for link in all_links:
+                        text = link.text.strip()
+                        if text and text.isdigit() and len(text) >= 5:  # Report IDs are typically 5+ digits
+                            numeric_links.append(link)
+
+                    self.logger.info(f"[v2.1] Method 5 - Found {len(numeric_links)} links with numeric text (5+ digits) for {year}")
+
+                    for link in numeric_links:
+                        href = link.get_attribute('href')
+                        text = link.text.strip()
+                        link_id = link.get_attribute('id')
+                        link_class = link.get_attribute('class')
+                        potential_report_links.append((href or f"javascript:void(0)", text, f"numeric id={link_id} class={link_class}"))
+                        self.logger.info(f"[v2.1] Method 5 SUCCESS: {text} (id: {link_id}, class: {link_class})")
+
+                    # Remove duplicates but keep the source info
+                    unique_links = {}
+                    for href, text, source in potential_report_links:
+                        key = f"{text}_{href}"
+                        if key not in unique_links:
+                            unique_links[key] = (href, text, source)
+
+                    self.logger.info(f"[v2.1] === FINAL RESULTS FOR {year} ===")
+                    self.logger.info(f"[v2.1] Found {len(unique_links)} unique report links for {year}")
 
                     # Add found reports to collection
-                    for report_url, report_text in potential_report_links:
+                    for href, text, source in unique_links.values():
                         all_reports.append({
                             'year': year,
-                            'report_name': report_text,
-                            'report_url': report_url
+                            'report_name': text,
+                            'report_url': href,
+                            'detection_method': source
                         })
-                        self.logger.info(f"[v2.0] Added report: {year} - {report_text}")
+                        self.logger.info(f"[v2.1] ADDED REPORT: {year} - {text} (via {source})")
 
-                    if not potential_report_links:
-                        self.logger.warning(f"[v2.0] No report links found for year {year} after expansion")
+                    # NEW: Test downloading the FIRST link if we found any
+                    if unique_links and year == '2025':  # Only test on 2025
+                        first_link = list(unique_links.values())[0]
+                        href, text, source = first_link
+                        self.logger.info(f"[v2.1] === TESTING PDF DOWNLOAD ===")
+                        self.logger.info(f"[v2.1] Will download: {text} (detected via {source})")
 
-                        # Debug: show what links ARE present
-                        all_links_in_page = self.driver.find_elements(By.TAG_NAME, "a")
-                        self.logger.debug(f"[v2.0] Total links on page after expanding {year}: {len(all_links_in_page)}")
+                        try:
+                            # Find the actual element again to click it
+                            test_link = None
+                            for link in all_links:
+                                if link.text.strip() == text:
+                                    test_link = link
+                                    break
 
-                        # Show some example links for debugging
-                        for i, link in enumerate(all_links_in_page[:5]):
-                            link_text = link.text.strip()[:20]
-                            link_id = link.get_attribute('id')
-                            link_class = link.get_attribute('class')
-                            if link_text or link_id:
-                                self.logger.debug(f"  [v2.0] Link {i}: text='{link_text}' id='{link_id}' class='{link_class}'")
+                            if test_link:
+                                downloaded_file = self._download_single_report_hybrid(test_link, "Francis Howell Families", year, text)
+                                if downloaded_file:
+                                    self.logger.info(f"[v2.1] SUCCESS: Downloaded {downloaded_file}")
+                                else:
+                                    self.logger.warning(f"[v2.1] FAILED: Could not download {text}")
+                            else:
+                                self.logger.warning(f"[v2.1] Could not find element to click for {text}")
+
+                        except Exception as e:
+                            self.logger.error(f"[v2.1] Error downloading {text}: {e}")
+
+                    if not unique_links:
+                        self.logger.warning(f"[v2.1] NO REPORT LINKS FOUND for year {year} - this needs investigation")
 
                 except Exception as e:
-                    self.logger.error(f"[v2.0] Error processing year {year}: {e}")
+                    self.logger.error(f"[v2.1] Error processing year {year}: {e}")
                     continue
 
-            self.logger.info(f"[v2.0] Found {len(all_reports)} total reports")
+            self.logger.info(f"[v2.1] === FINAL SUMMARY ===")
+            self.logger.info(f"[v2.1] Found {len(all_reports)} total reports across all years")
             return all_reports
 
         except Exception as e:
-            self.logger.error(f"[v2.0] Error getting reports: {e}")
+            self.logger.error(f"[v2.1] Error getting reports: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -390,115 +483,167 @@ class MECReportScraper:
         year_match = re.search(r'\b(20\d{2})\b', text)
         return year_match.group(1) if year_match else "unknown"
 
-    def download_report(self, report_url: str, filename: str, committee_dir: Path) -> Optional[str]:
+    def _download_single_report_hybrid(self, report_link, committee_name: str, year: str, report_id: str) -> Optional[str]:
         """
-        Download a specific report PDF by handling the dynamic generation process
+        Download a single PDF report using hybrid detection approach
 
         Args:
-            report_url: URL to the report generator page
-            filename: Desired filename for the download
-            committee_dir: Directory to save the file
+            report_link: Selenium WebElement for the report link
+            committee_name: Name of committee
+            year: Report year
+            report_id: Report ID
 
         Returns:
-            Path to downloaded file or None if failed
+            Filename of downloaded file or None if failed
         """
-        committee_dir.mkdir(parents=True, exist_ok=True)
-        filepath = committee_dir / filename
+        self.logger.info(f"[v2.1] === HYBRID PDF DOWNLOAD START ===")
+        self.logger.info(f"[v2.1] Downloading report {report_id} for {committee_name} ({year})")
 
         try:
-            self.logger.info(f"Processing dynamic PDF generation for: {filename}")
+            # Generate safe filename
+            safe_committee_name = "".join(c for c in committee_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            filename = f"{safe_committee_name}_{year}_{report_id}.pdf"
+            filepath = self.output_dir / filename
 
-            # Store the current window handle
-            main_window = self.driver.current_window_handle
+            # Store current window handle
+            original_window = self.driver.current_window_handle
+            self.logger.info(f"[v2.1] Original window: {original_window}")
 
-            # Click the report link (this will open a new tab)
-            self.driver.get(report_url)
+            # Click the report link (opens new tab)
+            self.logger.info(f"[v2.1] Clicking report link for {report_id}")
+            self.driver.execute_script("arguments[0].click();", report_link)
 
-            # Wait for the page to load and check if it's a generator page
+            # Wait for new tab to open
             time.sleep(3)
 
-            # Check if we're on a PDF generation page
-            page_source = self.driver.page_source.lower()
+            # Switch to the new tab
+            all_windows = self.driver.window_handles
+            new_window = None
+            for window in all_windows:
+                if window != original_window:
+                    new_window = window
+                    break
 
-            if "generating report" in page_source or "may take several minutes" in page_source:
-                self.logger.info(f"PDF generation started for {filename}, waiting for completion...")
+            if not new_window:
+                self.logger.error(f"[v2.1] No new tab opened for report {report_id}")
+                return None
 
-                # Wait for PDF generation to complete (up to 5 minutes)
-                max_wait_time = 300  # 5 minutes
-                wait_interval = 10   # Check every 10 seconds
-                waited_time = 0
+            self.driver.switch_to.window(new_window)
+            current_url = self.driver.current_url
+            self.logger.info(f"[v2.1] Switched to new tab: {current_url}")
 
-                while waited_time < max_wait_time:
-                    time.sleep(wait_interval)
-                    waited_time += wait_interval
+            # SIMPLE 3-MINUTE TIMER APPROACH
+            self.logger.info(f"[v2.1] === Starting 3-minute wait for PDF generation ===")
 
-                    # Check if page has changed to show PDF
-                    current_url = self.driver.current_url
+            max_wait_time = 180  # 3 minutes
+            check_interval = 30   # Check every 30 seconds just for logging
+            elapsed_time = 0
+
+            while elapsed_time < max_wait_time:
+                self.logger.info(f"[v2.1] Waiting for PDF generation... ({elapsed_time}/{max_wait_time}s)")
+
+                # Optional: Check if generating text has disappeared (but don't act on it)
+                try:
                     page_source = self.driver.page_source.lower()
+                    generating_text_present = ("generating report" in page_source or
+                                             "this may take several minutes" in page_source)
+                    self.logger.info(f"[v2.1] Status check - Generating text still present: {generating_text_present}")
+                except Exception as e:
+                    self.logger.info(f"[v2.1] Could not check page status: {e}")
 
-                    # Check if PDF is ready (URL might change or page content changes)
-                    if ("pdf" in current_url.lower() or
-                        "application/pdf" in self.driver.execute_script("return document.contentType;") or
-                        len(page_source) < 1000):  # PDF pages typically have minimal HTML
+                time.sleep(check_interval)
+                elapsed_time += check_interval
 
-                        self.logger.info(f"PDF generation completed for {filename}")
-                        break
+            self.logger.info(f"[v2.1] 3-minute wait complete - assuming PDF is ready for download")
 
-                    # Check for error messages
-                    if "error" in page_source or "not found" in page_source:
-                        self.logger.error(f"Error generating PDF for {filename}")
-                        return None
+            # PDF should be ready now - attempt download
+            self.logger.info(f"[v2.1] === PDF READY - Attempting Download ===")
 
-                    self.logger.debug(f"Still waiting for PDF generation... ({waited_time}/{max_wait_time} seconds)")
+            download_success = False
 
-                if waited_time >= max_wait_time:
-                    self.logger.error(f"Timeout waiting for PDF generation: {filename}")
-                    return None
-
-            # At this point, we should have a PDF. Try to download it.
-            # Method 1: If the current page is a PDF, download it directly
+            # Method 1: Direct URL download
             try:
                 current_url = self.driver.current_url
-                response = self.session.get(current_url, timeout=30, stream=True)
+                self.logger.info(f"[v2.1] Download Method 1: Direct URL - {current_url}")
 
-                # Check if response is actually a PDF
+                response = self.session.get(current_url, timeout=30)
+
+                # Check if response is PDF
                 content_type = response.headers.get('content-type', '').lower()
-                if 'pdf' in content_type or response.content.startswith(b'%PDF'):
+                content_starts_with_pdf = response.content.startswith(b'%PDF')
 
+                self.logger.info(f"[v2.1] Response content-type: {content_type}")
+                self.logger.info(f"[v2.1] Content starts with PDF marker: {content_starts_with_pdf}")
+
+                if 'pdf' in content_type or content_starts_with_pdf:
                     with open(filepath, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
+                        f.write(response.content)
 
+                    # Verify file size
                     file_size = filepath.stat().st_size
-                    if file_size > 1000:  # Ensure file is not empty/error page
-                        self.logger.info(f"Downloaded PDF: {filename} ({file_size:,} bytes)")
-                        return str(filepath)
+                    if file_size > 1000:  # Reasonable PDF size
+                        download_success = True
+                        self.logger.info(f"[v2.1] SUCCESS: PDF downloaded via direct URL - {filename} ({file_size:,} bytes)")
                     else:
-                        self.logger.warning(f"Downloaded file too small, may be error: {filename}")
-                        filepath.unlink()  # Delete empty file
+                        self.logger.warning(f"[v2.1] Downloaded file too small ({file_size} bytes), likely an error page")
+                        filepath.unlink()  # Delete small/empty file
 
             except Exception as e:
-                self.logger.debug(f"Direct download failed: {e}")
+                self.logger.warning(f"[v2.1] Download Method 1 failed: {e}")
 
-            self.logger.error(f"All download methods failed for: {filename}")
-            return None
+            # Method 2: Check browser's download folder for auto-downloaded file
+            if not download_success:
+                self.logger.info(f"[v2.1] Download Method 2: Checking for browser auto-download")
+                time.sleep(5)  # Give time for auto-download
+
+                # Look for files with the report ID in the name
+                possible_files = list(self.output_dir.glob(f"*{report_id}*.pdf"))
+                if possible_files:
+                    # Rename to our desired filename
+                    downloaded_file = possible_files[0]
+                    if downloaded_file != filepath:
+                        downloaded_file.rename(filepath)
+                    download_success = True
+                    file_size = filepath.stat().st_size
+                    self.logger.info(f"[v2.1] SUCCESS: PDF auto-downloaded - {filename} ({file_size:,} bytes)")
+                else:
+                    self.logger.info(f"[v2.1] No auto-downloaded files found")
+
+            # Close the PDF tab and return to original window
+            self.logger.info(f"[v2.1] Closing PDF tab and returning to original window")
+            self.driver.close()
+            self.driver.switch_to.window(original_window)
+
+            if download_success:
+                return filename
+            else:
+                self.logger.warning(f"[v2.1] All download methods failed for report {report_id}")
+                return None
 
         except Exception as e:
-            self.logger.error(f"Error processing report {filename}: {e}")
+            self.logger.error(f"[v2.1] Error in _download_single_report_hybrid: {e}")
+            # Ensure we return to original window
+            try:
+                if len(self.driver.window_handles) > 1:
+                    self.driver.close()
+                    self.driver.switch_to.window(original_window)
+            except:
+                pass
             return None
 
     def extract_all_reports_for_committee(self, committee_name: str, output_subdir: str = None) -> List[Dict]:
         """
-        Complete workflow: search committee, get all reports, download them
+        Complete workflow: search committee, get all reports
+        VERSION 2.1 - Enhanced link detection only, no downloads yet
 
         Args:
             committee_name: Name of committee to search for
             output_subdir: Optional subdirectory name for this committee
 
         Returns:
-            List of downloaded file information
+            List of found report information (no downloads yet)
         """
-        self.logger.info(f"[v2.0] Starting extraction for committee: {committee_name}")
+        self.logger.info(f"[v2.1] Starting extraction for committee: {committee_name}")
 
         # Search for committee
         search_results = self.search_committee(committee_name)
@@ -507,39 +652,31 @@ class MECReportScraper:
             self.logger.warning("No committees found")
             return []
 
-        all_downloaded_files = []
+        all_found_reports = []
 
         for committee in search_results:
             self.logger.info(f"Processing: {committee['committee_name']} (MECID: {committee['mecid']})")
 
-            # Create committee-specific directory
-            if output_subdir:
-                committee_dir = self.output_dir / output_subdir
-            else:
-                safe_name = re.sub(r'[<>:"/\\|?*]', '_', committee['committee_name'])
-                committee_dir = self.output_dir / f"{committee['mecid']}_{safe_name}"
-
             # Save committee metadata
-            self._save_committee_metadata(committee, committee_dir)
+            self._save_committee_metadata(committee, self.output_dir)
 
-            # Get all reports for this committee
+            # Get all reports for this committee (enhanced detection)
             if committee['committee_url']:
                 reports = self.get_committee_reports(committee['committee_url'])
 
-                # For now, just return the found reports without downloading
-                # (we can add downloading later once link detection works)
+                # Return found reports (no downloads in v2.1)
                 for report in reports:
-                    all_downloaded_files.append({
+                    all_found_reports.append({
                         'committee': committee,
                         'report': report,
-                        'local_file': None,  # Not downloaded yet
+                        'local_file': None,  # Not downloaded in v2.1
                         'download_timestamp': datetime.now().isoformat()
                     })
             else:
                 self.logger.warning(f"No committee URL found for {committee['mecid']}")
 
-        self.logger.info(f"[v2.0] Extraction complete. Found {len(all_downloaded_files)} reports")
-        return all_downloaded_files
+        self.logger.info(f"[v2.1] Extraction complete. Found {len(all_found_reports)} reports")
+        return all_found_reports
 
     def _save_committee_metadata(self, committee: Dict, committee_dir: Path):
         """Save committee metadata to JSON file"""
@@ -549,26 +686,11 @@ class MECReportScraper:
         metadata = {
             **committee,
             'extraction_timestamp': datetime.now().isoformat(),
-            'scraper_version': '2.0'
+            'scraper_version': '2.1'
         }
 
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
-
-    def _generate_filename(self, committee: Dict, report: Dict) -> str:
-        """Generate a clean filename for the report"""
-        # Clean report name
-        clean_report_name = re.sub(r'[<>:"/\\|?*]', '_', report['report_name'])
-        clean_report_name = re.sub(r'\s+', '_', clean_report_name.strip())
-
-        # Generate filename: MECID_YEAR_ReportName.pdf
-        filename = f"{committee['mecid']}_{report['year']}_{clean_report_name}.pdf"
-
-        # Ensure it ends with .pdf
-        if not filename.lower().endswith('.pdf'):
-            filename += '.pdf'
-
-        return filename
 
     def close(self):
         """Clean up resources"""
@@ -594,7 +716,7 @@ def extract_committee_reports(committee_name: str, output_dir: str = None, headl
         headless: Whether to run in headless mode
 
     Returns:
-        List of downloaded file information
+        List of found report information
     """
     scraper = MECReportScraper(headless=headless, output_dir=output_dir)
 
@@ -616,7 +738,6 @@ if __name__ == "__main__":
 
     print(f"\nFound {len(results)} reports:")
     for result in results:
-        print(f"  - {result['report']['year']} - {result['report']['report_name']}")
+        print(f"  - {result['report']['year']} - {result['report']['report_name']} (via {result['report']['detection_method']})")
 
-# VERSION: 2.0 - Updated 2025-09-15 14:40 EST
-# Changes: Fixed btn-link selector, added 5-second wait, removed committee_dir error
+# VERSION: 2.1 - Enhanced Link Detection Only - 2025-09-15
