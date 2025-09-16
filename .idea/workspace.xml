@@ -4,8 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="opens document">
+    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="commit for visibility - almost done">
+      <change afterPath="$PROJECT_DIR$/enhanced_stealth_main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/stealth_main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logs/mec_scraper.log" beforeDir="false" afterPath="$PROJECT_DIR$/logs/mec_scraper.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mec_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/mec_scraper.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -187,12 +191,21 @@
       <option name="project" value="LOCAL" />
       <updated>1757968285795</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="commit for visibility - almost done">
+      <option name="closed" value="true" />
+      <created>1758030247988</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1758030247988</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="1st push" />
     <MESSAGE value="opens document" />
-    <option name="LAST_COMMIT_MESSAGE" value="opens document" />
+    <MESSAGE value="commit for visibility - almost done" />
+    <option name="LAST_COMMIT_MESSAGE" value="commit for visibility - almost done" />
   </component>
 </project>
