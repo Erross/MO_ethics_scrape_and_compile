@@ -4,10 +4,11 @@ Missouri Ethics Commission Campaign Finance Report Scraper
 This module provides functionality to search for committees and download
 their quarterly campaign finance reports from the MEC website.
 
-VERSION: 2.2 - Updated 2025-09-15 - FIXED DATE EXTRACTION + CONFIGURABLE DOWNLOADS
+VERSION: 2.4 - Updated 2025-09-16 - ENHANCED MULTI-YEAR DETECTION
 - Fixed table extraction to properly parse report names and dates
-- Configurable download limits via command line
-- Improved HTML parsing for nested table structures
+- Enhanced link detection with multiple fallback methods
+- Improved multi-year processing with better element handling
+- Added comprehensive debugging for multi-year issues
 """
 
 import logging
@@ -56,7 +57,7 @@ except ImportError:
 class MECReportScraper:
     """
     Main scraper class for extracting campaign finance reports from Missouri Ethics Commission
-    VERSION: 2.2 - Fixed Date Extraction + Configurable Downloads
+    VERSION: 2.4 - Enhanced Multi-Year Detection
     """
 
     def __init__(self, headless: bool = None, output_dir: str = None, max_downloads: int = 3):
@@ -86,7 +87,7 @@ class MECReportScraper:
         self.driver = None
         self._setup_selenium()
 
-        self.logger.info(f"MEC Scraper v2.2 initialized - 2025-09-15 with fixed date extraction (max downloads: {max_downloads})")
+        self.logger.info(f"MEC Scraper v2.4 initialized with enhanced multi-year detection (max downloads: {max_downloads})")
 
     def _setup_logging(self):
         """Setup logging configuration"""
@@ -154,7 +155,7 @@ class MECReportScraper:
             # Wait for page to load
             wait = WebDriverWait(self.driver, SCRAPER_CONFIG['page_load_timeout'])
 
-            # Find and fill committee name input - using correct element names from debug
+            # Find and fill committee name input
             committee_input = wait.until(
                 EC.presence_of_element_located((By.NAME, "ctl00$ctl00$ContentPlaceHolder$ContentPlaceHolder1$txtComm"))
             )
@@ -162,7 +163,7 @@ class MECReportScraper:
             committee_input.clear()
             committee_input.send_keys(committee_name)
 
-            # Click search button - using correct element name from debug
+            # Click search button
             search_button = self.driver.find_element(By.NAME, "ctl00$ctl00$ContentPlaceHolder$ContentPlaceHolder1$btnSearch")
             search_button.click()
 
@@ -187,7 +188,7 @@ class MECReportScraper:
         results = []
 
         try:
-            # Look for results table - try multiple possible IDs based on the pattern we found
+            # Look for results table
             possible_table_ids = [
                 "ctl00_ctl00_ContentPlaceHolder_ContentPlaceHolder1_gvResults",
                 "ctl00_ContentPlaceHolder1_ContentPlaceHolder1_gvResults",
@@ -226,7 +227,7 @@ class MECReportScraper:
 
             for row in rows[1:]:  # Skip header row
                 cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= 6:  # Based on your screenshot columns
+                if len(cells) >= 6:
                     mecid = cells[0].text.strip()
                     committee_name = cells[1].text.strip()
                     candidate = cells[2].text.strip()
@@ -264,7 +265,7 @@ class MECReportScraper:
     def get_committee_reports(self, committee_url: str, committee_name: str = "Unknown") -> List[Dict]:
         """
         Navigate to committee page and extract all available reports
-        VERSION 2.2 - FIXED DATE EXTRACTION + CONFIGURABLE DOWNLOADS
+        VERSION 2.4 - ENHANCED MULTI-YEAR DETECTION
 
         Args:
             committee_url: URL to committee information page
@@ -273,7 +274,7 @@ class MECReportScraper:
         Returns:
             List of report information dictionaries
         """
-        self.logger.info(f"[v2.2] Getting reports from: {committee_url}")
+        self.logger.info(f"[v2.4] Getting reports from: {committee_url}")
 
         try:
             # Navigate to committee page
@@ -292,94 +293,48 @@ class MECReportScraper:
             all_reports = []
 
             # Find the main reports table
-            self.logger.info("[v2.2] Looking for reports table...")
+            self.logger.info("[v2.4] Looking for reports table...")
 
             try:
                 reports_table = self.driver.find_element(By.ID, "ContentPlaceHolder_ContentPlaceHolder1_grvReportOutside")
-                self.logger.info("[v2.2] Found main reports table")
+                self.logger.info("[v2.4] Found main reports table")
             except NoSuchElementException:
-                self.logger.error("[v2.2] Could not find main reports table")
+                self.logger.error("[v2.4] Could not find main reports table")
                 return []
 
-            # Process each year one at a time to avoid stale element issues
+            # Process each year one at a time with enhanced detection
             years_to_process = ['2025', '2024', '2023', '2022', '2021']
 
             for year in years_to_process:
                 try:
-                    self.logger.info(f"[v2.2] Processing year: {year}")
+                    self.logger.info(f"[v2.4] Processing year: {year}")
 
-                    # Re-find the expand button for this year (avoid stale elements)
-                    expand_button = None
-                    try:
-                        # Find the expand button for this specific year
-                        year_spans = self.driver.find_elements(By.CSS_SELECTOR, "span[id*='lblYear']")
-                        for i, span in enumerate(year_spans):
-                            if span.text.strip() == year:
-                                # Find the corresponding expand button
-                                expand_buttons = self.driver.find_elements(By.CSS_SELECTOR, "input[id*='ImgRptRight']")
-                                if i < len(expand_buttons):
-                                    expand_button = expand_buttons[i]
-                                    break
-                    except Exception as e:
-                        self.logger.debug(f"Error finding expand button for {year}: {e}")
+                    # ENHANCED APPROACH: Try multiple methods to find and expand the year section
+                    expand_success = self._expand_year_section(year)
+
+                    if not expand_success:
+                        self.logger.warning(f"[v2.4] Could not expand year {year} section")
                         continue
 
-                    if not expand_button:
-                        self.logger.warning(f"Could not find expand button for year {year}")
+                    # ENHANCED LINK DETECTION with multiple fallback methods
+                    self.logger.info(f"[v2.4] === ENHANCED LINK DETECTION FOR {year} ===")
+
+                    # Get all potential report links using multiple methods
+                    potential_links = self._detect_report_links(year)
+
+                    if not potential_links:
+                        self.logger.warning(f"[v2.4] NO REPORT LINKS FOUND for year {year}")
+                        # Additional debugging
+                        self._debug_page_content(year)
                         continue
 
-                    # Click to expand this year's section
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", expand_button)
-                    time.sleep(1)
-                    expand_button.click()
-
-                    # CRITICAL: Wait 5 seconds for content to load
-                    self.logger.info(f"[v2.2] Waiting 5 seconds for {year} content to load...")
-                    time.sleep(5)
-
-                    # ENHANCED LINK DETECTION
-                    self.logger.info(f"[v2.2] === ENHANCED LINK DETECTION FOR {year} ===")
-
-                    potential_report_links = []
-
-                    # Method 1: Look for btn-link class
-                    btn_links = self.driver.find_elements(By.CSS_SELECTOR, "a.btn-link")
-                    self.logger.info(f"[v2.2] Found {len(btn_links)} 'a.btn-link' elements for {year}")
-
-                    for link in btn_links:
-                        href = link.get_attribute('href')
-                        text = link.text.strip()
-                        data_cpid = link.get_attribute('data-cpid')
-                        link_id = link.get_attribute('id')
-
-                        if text and (data_cpid or text.isdigit()):
-                            potential_report_links.append((link, href or f"javascript:void(0)", text, f"btn-link id={link_id} cpid={data_cpid}"))
-
-                    # Method 2: Look for data-cpid attribute directly
-                    cpid_links = self.driver.find_elements(By.CSS_SELECTOR, "a[data-cpid]")
-                    for link in cpid_links:
-                        href = link.get_attribute('href')
-                        text = link.text.strip()
-                        data_cpid = link.get_attribute('data-cpid')
-                        link_id = link.get_attribute('id')
-
-                        if text and data_cpid:
-                            potential_report_links.append((link, href or f"javascript:void(0)", text, f"data-cpid id={link_id} cpid={data_cpid}"))
-
-                    # Remove duplicates but keep the element reference
-                    unique_links = {}
-                    for element, href, text, source in potential_report_links:
-                        key = text
-                        if key not in unique_links:
-                            unique_links[key] = (element, href, text, source)
-
-                    self.logger.info(f"[v2.2] Found {len(unique_links)} unique report links for {year}")
+                    self.logger.info(f"[v2.4] Found {len(potential_links)} unique report links for {year}")
 
                     # Extract full report details from table rows
                     enhanced_reports = []
-                    for element, href, text, source in unique_links.values():
+                    for element, href, text, source in potential_links:
                         # Find the table row containing this report to get full details
-                        report_details = self._extract_report_details_from_table_fixed(text, year)
+                        report_details = self._extract_report_details_from_table(text, year)
 
                         enhanced_reports.append({
                             'element': element,
@@ -390,19 +345,19 @@ class MECReportScraper:
                             'report_url': href,
                             'detection_method': source
                         })
-                        self.logger.info(f"[v2.2] ADDED REPORT: {year} - {text} - {report_details['name']} ({report_details['date']}) (via {source})")
+                        self.logger.info(f"[v2.4] ADDED REPORT: {year} - {text} - {report_details['name']} ({report_details['date']}) (via {source})")
 
                     # Add to collection
                     all_reports.extend(enhanced_reports)
 
                     # Download files if we have any and haven't exceeded limit
-                    if unique_links and self.max_downloads > 0:
+                    if potential_links and self.max_downloads > 0:
                         download_count = min(len(enhanced_reports), self.max_downloads)
                         test_reports = enhanced_reports[:download_count]
-                        self.logger.info(f"[v2.2] === DOWNLOADING {len(test_reports)} FILES FROM {year} ===")
+                        self.logger.info(f"[v2.4] === DOWNLOADING {len(test_reports)} FILES FROM {year} ===")
 
                         for i, report in enumerate(test_reports):
-                            self.logger.info(f"[v2.2] Will download {i+1}/{len(test_reports)}: {report['report_id']} - {report['report_name']}")
+                            self.logger.info(f"[v2.4] Will download {i+1}/{len(test_reports)}: {report['report_id']} - {report['report_name']}")
 
                             try:
                                 downloaded_file = self._download_single_report_with_monitoring(
@@ -414,38 +369,249 @@ class MECReportScraper:
                                     report['report_date']
                                 )
                                 if downloaded_file:
-                                    self.logger.info(f"[v2.2] SUCCESS {i+1}/{len(test_reports)}: Downloaded {downloaded_file}")
+                                    report['local_file'] = downloaded_file  # Track successful downloads
+                                    self.logger.info(f"[v2.4] SUCCESS {i+1}/{len(test_reports)}: Downloaded {downloaded_file}")
                                 else:
-                                    self.logger.warning(f"[v2.2] FAILED {i+1}/{len(test_reports)}: Could not download {report['report_id']}")
+                                    self.logger.warning(f"[v2.4] FAILED {i+1}/{len(test_reports)}: Could not download {report['report_id']}")
 
                                 # Brief pause between downloads
                                 if i < len(test_reports) - 1:
-                                    self.logger.info(f"[v2.2] Waiting 3 seconds before next download...")
+                                    self.logger.info(f"[v2.4] Waiting 3 seconds before next download...")
                                     time.sleep(3)
 
                             except Exception as e:
-                                self.logger.error(f"[v2.2] Error downloading {report['report_id']}: {e}")
-
-                    if not unique_links:
-                        self.logger.warning(f"[v2.2] NO REPORT LINKS FOUND for year {year}")
+                                self.logger.error(f"[v2.4] Error downloading {report['report_id']}: {e}")
 
                 except Exception as e:
-                    self.logger.error(f"[v2.2] Error processing year {year}: {e}")
+                    self.logger.error(f"[v2.4] Error processing year {year}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
 
-            self.logger.info(f"[v2.2] === FINAL SUMMARY ===")
-            self.logger.info(f"[v2.2] Found {len(all_reports)} total reports across all years")
+            self.logger.info(f"[v2.4] === FINAL SUMMARY ===")
+            self.logger.info(f"[v2.4] Found {len(all_reports)} total reports across all years")
             return all_reports
 
         except Exception as e:
-            self.logger.error(f"[v2.2] Error getting reports: {e}")
+            self.logger.error(f"[v2.4] Error getting reports: {e}")
             import traceback
             traceback.print_exc()
             return []
 
-    def _extract_report_details_from_table_fixed(self, report_id: str, year: str) -> Dict[str, str]:
+    def _expand_year_section(self, year: str) -> bool:
         """
-        FIXED: Extract full report name and date from the table row using proper HTML structure
+        Enhanced method to find and expand a year section with multiple fallback approaches
+
+        Args:
+            year: The year to expand (e.g., '2024')
+
+        Returns:
+            True if successfully expanded, False otherwise
+        """
+        self.logger.info(f"[v2.4] Attempting to expand year {year} section")
+
+        # Method 1: Standard approach - find year span and corresponding expand button
+        try:
+            year_spans = self.driver.find_elements(By.CSS_SELECTOR, "span[id*='lblYear']")
+            expand_buttons = self.driver.find_elements(By.CSS_SELECTOR, "input[id*='ImgRptRight']")
+
+            self.logger.info(f"[v2.4] Found {len(year_spans)} year spans, {len(expand_buttons)} expand buttons")
+
+            for i, span in enumerate(year_spans):
+                span_text = span.text.strip()
+                self.logger.info(f"[v2.4] Year span {i}: '{span_text}'")
+                if span_text == year and i < len(expand_buttons):
+                    expand_button = expand_buttons[i]
+
+                    # Check if already expanded
+                    button_src = expand_button.get_attribute('src') or ''
+                    if 'down' in button_src.lower() or 'collapse' in button_src.lower():
+                        self.logger.info(f"[v2.4] Year {year} appears already expanded")
+                        return True
+
+                    # Click to expand
+                    self.logger.info(f"[v2.4] Clicking expand button for {year}")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", expand_button)
+                    time.sleep(1)
+                    self.driver.execute_script("arguments[0].click();", expand_button)
+
+                    # Wait for expansion
+                    wait_time = 8 if year != '2025' else 5
+                    self.logger.info(f"[v2.4] Waiting {wait_time} seconds for {year} content to load...")
+                    time.sleep(wait_time)
+                    return True
+
+        except Exception as e:
+            self.logger.warning(f"[v2.4] Method 1 failed for {year}: {e}")
+
+        # Method 2: Try clicking on the year span itself
+        try:
+            year_clickable = self.driver.find_element(By.XPATH, f"//span[normalize-space(text())='{year}']")
+            if year_clickable:
+                self.logger.info(f"[v2.4] Method 2: Clicking directly on year span for {year}")
+                self.driver.execute_script("arguments[0].click();", year_clickable)
+                time.sleep(8)
+                return True
+        except Exception as e:
+            self.logger.warning(f"[v2.4] Method 2 failed for {year}: {e}")
+
+        # Method 3: Try finding expand button by different selectors
+        try:
+            expand_selectors = [
+                f"input[onclick*='{year}']",
+                "input[id*='expand']",
+                "input[id*='Expand']",
+                "img[src*='expand']",
+                "img[src*='plus']"
+            ]
+
+            for selector in expand_selectors:
+                try:
+                    buttons = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for button in buttons:
+                        # Check if this button is related to our year
+                        button_html = button.get_attribute('outerHTML')
+                        if year in button_html:
+                            self.logger.info(f"[v2.4] Method 3: Found expand button via selector {selector}")
+                            self.driver.execute_script("arguments[0].click();", button)
+                            time.sleep(8)
+                            return True
+                except:
+                    continue
+
+        except Exception as e:
+            self.logger.warning(f"[v2.4] Method 3 failed for {year}: {e}")
+
+        return False
+
+    def _detect_report_links(self, year: str) -> List[tuple]:
+        """
+        Enhanced report link detection with multiple fallback methods
+
+        Args:
+            year: The year to detect links for
+
+        Returns:
+            List of tuples (element, href, text, source)
+        """
+        potential_links = []
+
+        # Method 1: Generator.aspx links (most reliable)
+        try:
+            generator_links = self.driver.find_elements(By.CSS_SELECTOR, "a[href*='Generator.aspx']")
+            self.logger.info(f"[v2.4] Method 1 - Found {len(generator_links)} Generator.aspx links")
+
+            for link in generator_links:
+                href = link.get_attribute('href')
+                text = link.text.strip()
+                link_id = link.get_attribute('id')
+
+                # Only include if it looks like a report ID (numeric, 5+ digits)
+                if text and text.isdigit() and len(text) >= 5:
+                    potential_links.append((link, href, text, f"generator-link id={link_id}"))
+                    self.logger.info(f"[v2.4] Method 1 SUCCESS: {text} (Generator.aspx)")
+
+        except Exception as e:
+            self.logger.warning(f"[v2.4] Method 1 failed: {e}")
+
+        # Method 2: btn-link class
+        if not potential_links:  # Only try if Method 1 failed
+            try:
+                btn_links = self.driver.find_elements(By.CSS_SELECTOR, "a.btn-link")
+                self.logger.info(f"[v2.4] Method 2 - Found {len(btn_links)} btn-link elements")
+
+                for link in btn_links:
+                    href = link.get_attribute('href')
+                    text = link.text.strip()
+                    data_cpid = link.get_attribute('data-cpid')
+                    link_id = link.get_attribute('id')
+
+                    if text and (data_cpid or (text.isdigit() and len(text) >= 5)):
+                        potential_links.append((link, href or f"javascript:void(0)", text, f"btn-link id={link_id} cpid={data_cpid}"))
+                        self.logger.info(f"[v2.4] Method 2 SUCCESS: {text} (btn-link)")
+
+            except Exception as e:
+                self.logger.warning(f"[v2.4] Method 2 failed: {e}")
+
+        # Method 3: data-cpid links
+        if not potential_links:
+            try:
+                cpid_links = self.driver.find_elements(By.CSS_SELECTOR, "a[data-cpid]")
+                self.logger.info(f"[v2.4] Method 3 - Found {len(cpid_links)} data-cpid links")
+
+                for link in cpid_links:
+                    href = link.get_attribute('href')
+                    text = link.text.strip()
+                    data_cpid = link.get_attribute('data-cpid')
+                    link_id = link.get_attribute('id')
+
+                    if text and data_cpid:
+                        potential_links.append((link, href or f"javascript:void(0)", text, f"data-cpid id={link_id} cpid={data_cpid}"))
+                        self.logger.info(f"[v2.4] Method 3 SUCCESS: {text} (data-cpid)")
+
+            except Exception as e:
+                self.logger.warning(f"[v2.4] Method 3 failed: {e}")
+
+        # Method 4: Any numeric links that could be report IDs
+        if not potential_links:
+            try:
+                all_links = self.driver.find_elements(By.TAG_NAME, "a")
+                numeric_links = []
+
+                for link in all_links:
+                    text = link.text.strip()
+                    if text and text.isdigit() and len(text) >= 5:
+                        numeric_links.append(link)
+
+                self.logger.info(f"[v2.4] Method 4 - Found {len(numeric_links)} numeric links")
+
+                for link in numeric_links:
+                    href = link.get_attribute('href')
+                    text = link.text.strip()
+                    link_id = link.get_attribute('id')
+
+                    potential_links.append((link, href or f"javascript:void(0)", text, f"numeric id={link_id}"))
+                    self.logger.info(f"[v2.4] Method 4 SUCCESS: {text} (numeric)")
+
+            except Exception as e:
+                self.logger.warning(f"[v2.4] Method 4 failed: {e}")
+
+        # Remove duplicates while preserving order
+        unique_links = {}
+        for element, href, text, source in potential_links:
+            if text not in unique_links:
+                unique_links[text] = (element, href, text, source)
+
+        return list(unique_links.values())
+
+    def _debug_page_content(self, year: str):
+        """Debug helper to understand why no links were found for a year"""
+        try:
+            self.logger.info(f"[v2.4] === DEBUGGING PAGE CONTENT FOR {year} ===")
+
+            # Check if year appears in page text
+            page_text = self.driver.find_element(By.TAG_NAME, "body").text
+            if year in page_text:
+                self.logger.info(f"[v2.4] DEBUG: Year {year} found in page text")
+            else:
+                self.logger.warning(f"[v2.4] DEBUG: Year {year} NOT found in page text")
+
+            # Check for any tables containing the year
+            tables = self.driver.find_elements(By.TAG_NAME, "table")
+            for i, table in enumerate(tables):
+                if year in table.text:
+                    self.logger.info(f"[v2.4] DEBUG: Year {year} found in table {i}")
+                    # Show first few links in this table
+                    links = table.find_elements(By.TAG_NAME, "a")[:3]
+                    for j, link in enumerate(links):
+                        self.logger.info(f"[v2.4] DEBUG: Table {i} link {j}: '{link.text}' href='{link.get_attribute('href')}'")
+
+        except Exception as e:
+            self.logger.warning(f"[v2.4] Debug failed: {e}")
+
+    def _extract_report_details_from_table(self, report_id: str, year: str) -> Dict[str, str]:
+        """
+        Extract full report name and date from the table row using proper HTML structure
 
         Args:
             report_id: The numeric report ID
@@ -455,7 +621,7 @@ class MECReportScraper:
             Dictionary with 'name' and 'date' keys
         """
         try:
-            self.logger.info(f"[v2.2] EXTRACTING TABLE DETAILS for report {report_id}")
+            self.logger.info(f"[v2.4] EXTRACTING TABLE DETAILS for report {report_id}")
 
             # Use XPath to find the exact link with this report ID, then get its parent row
             try:
@@ -468,7 +634,7 @@ class MECReportScraper:
                 # Get all cells in this row
                 cells = parent_row.find_elements(By.TAG_NAME, "td")
 
-                self.logger.info(f"[v2.2] Found row with {len(cells)} cells for report {report_id}")
+                self.logger.info(f"[v2.4] Found row with {len(cells)} cells for report {report_id}")
 
                 if len(cells) >= 3:
                     # Cell 0: Report ID (already have this)
@@ -483,11 +649,11 @@ class MECReportScraper:
                     name_spans = second_cell.find_elements(By.TAG_NAME, "span")
                     if name_spans:
                         report_name = name_spans[0].text.strip()
-                        self.logger.info(f"[v2.2] Found report name in span: '{report_name}'")
+                        self.logger.info(f"[v2.4] Found report name in span: '{report_name}'")
                     else:
                         # Fallback to cell text
                         report_name = second_cell.text.strip()
-                        self.logger.info(f"[v2.2] Using cell text for report name: '{report_name}'")
+                        self.logger.info(f"[v2.4] Using cell text for report name: '{report_name}'")
 
                     # Extract date from third cell
                     report_date = year
@@ -498,11 +664,11 @@ class MECReportScraper:
                         date_spans = third_cell.find_elements(By.TAG_NAME, "span")
                         if date_spans:
                             report_date = date_spans[0].text.strip()
-                            self.logger.info(f"[v2.2] Found report date in span: '{report_date}'")
+                            self.logger.info(f"[v2.4] Found report date in span: '{report_date}'")
                         else:
                             # Fallback to cell text
                             report_date = third_cell.text.strip()
-                            self.logger.info(f"[v2.2] Using cell text for report date: '{report_date}'")
+                            self.logger.info(f"[v2.4] Using cell text for report date: '{report_date}'")
 
                     # Clean up extracted data
                     if not report_name or report_name.lower() in ['', 'unknown report']:
@@ -510,7 +676,7 @@ class MECReportScraper:
                     if not report_date or report_date.lower() in ['', 'unknown date']:
                         report_date = year
 
-                    self.logger.info(f"[v2.2] SUCCESSFULLY EXTRACTED: Name='{report_name}', Date='{report_date}'")
+                    self.logger.info(f"[v2.4] SUCCESSFULLY EXTRACTED: Name='{report_name}', Date='{report_date}'")
 
                     return {
                         'name': report_name,
@@ -518,20 +684,20 @@ class MECReportScraper:
                     }
 
                 else:
-                    self.logger.warning(f"[v2.2] Row has insufficient cells ({len(cells)}) for report {report_id}")
+                    self.logger.warning(f"[v2.4] Row has insufficient cells ({len(cells)}) for report {report_id}")
 
             except Exception as e:
-                self.logger.warning(f"[v2.2] XPath method failed: {e}")
+                self.logger.warning(f"[v2.4] XPath method failed: {e}")
 
             # Final fallback - use defaults
-            self.logger.warning(f"[v2.2] Could not extract table details for report {report_id}, using defaults")
+            self.logger.warning(f"[v2.4] Could not extract table details for report {report_id}, using defaults")
             return {
                 'name': f"Report_{report_id}",
                 'date': year
             }
 
         except Exception as e:
-            self.logger.error(f"[v2.2] Error extracting report details: {e}")
+            self.logger.error(f"[v2.4] Error extracting report details: {e}")
             return {
                 'name': f"Report_{report_id}",
                 'date': year
@@ -553,8 +719,8 @@ class MECReportScraper:
         Returns:
             Filename of downloaded file or None if failed
         """
-        self.logger.info(f"[v2.2] === DOWNLOAD MONITORING START ===")
-        self.logger.info(f"[v2.2] Downloading: {report_name} (ID: {report_id}) - {report_date}")
+        self.logger.info(f"[v2.4] === DOWNLOAD MONITORING START ===")
+        self.logger.info(f"[v2.4] Downloading: {report_name} (ID: {report_id}) - {report_date}")
 
         try:
             # Generate safe filename from report details
@@ -570,7 +736,7 @@ class MECReportScraper:
 
             filepath = self.output_dir / filename
 
-            self.logger.info(f"[v2.2] Target filename: {filename}")
+            self.logger.info(f"[v2.4] Target filename: {filename}")
 
             # Store current window handle and take snapshot of existing files
             original_window = self.driver.current_window_handle
@@ -583,10 +749,10 @@ class MECReportScraper:
                 except:
                     pass
 
-            self.logger.info(f"[v2.2] Files before download: {list(initial_files.keys())}")
+            self.logger.info(f"[v2.4] Files before download: {list(initial_files.keys())}")
 
             # Click the report link (opens new tab)
-            self.logger.info(f"[v2.2] Clicking report link for {report_id}")
+            self.logger.info(f"[v2.4] Clicking report link for {report_id}")
             self.driver.execute_script("arguments[0].click();", report_link)
 
             # Wait for new tab to open
@@ -601,15 +767,15 @@ class MECReportScraper:
                     break
 
             if not new_window:
-                self.logger.error(f"[v2.2] No new tab opened for report {report_id}")
+                self.logger.error(f"[v2.4] No new tab opened for report {report_id}")
                 return None
 
             self.driver.switch_to.window(new_window)
             current_url = self.driver.current_url
-            self.logger.info(f"[v2.2] Switched to new tab: {current_url}")
+            self.logger.info(f"[v2.4] Switched to new tab: {current_url}")
 
-            # ACTIVE DOWNLOAD MONITORING
-            self.logger.info(f"[v2.2] === Starting active download monitoring ===")
+            # Active download monitoring
+            self.logger.info(f"[v2.4] === Starting active download monitoring ===")
 
             max_wait_time = 120  # 2 minutes maximum
             check_interval = 8    # Check every 8 seconds
@@ -617,7 +783,7 @@ class MECReportScraper:
             download_detected = False
 
             while elapsed_time < max_wait_time and not download_detected:
-                self.logger.info(f"[v2.2] Monitoring for download... ({elapsed_time}s elapsed)")
+                self.logger.info(f"[v2.4] Monitoring for download... ({elapsed_time}s elapsed)")
 
                 # Get current PDF files
                 current_files = {}
@@ -638,23 +804,23 @@ class MECReportScraper:
                     newest_file = max(new_or_modified_files, key=lambda p: p.stat().st_mtime)
                     file_size = newest_file.stat().st_size
 
-                    self.logger.info(f"[v2.2] *** DOWNLOAD DETECTED! New file: {newest_file.name} ({file_size:,} bytes) ***")
+                    self.logger.info(f"[v2.4] *** DOWNLOAD DETECTED! New file: {newest_file.name} ({file_size:,} bytes) ***")
 
                     # Verify file size is reasonable
                     if file_size > 1000:  # At least 1KB
                         download_detected = True
 
-                        # ROBUST RENAMING WITH RETRY LOGIC
+                        # Robust renaming with retry logic
                         success = self._rename_file_with_retry(newest_file, filepath, filename)
                         if success:
-                            self.logger.info(f"[v2.2] SUCCESS: Download and rename complete - {filename}")
+                            self.logger.info(f"[v2.4] SUCCESS: Download and rename complete - {filename}")
                         else:
-                            self.logger.warning(f"[v2.2] Download successful but rename failed - using original name: {newest_file.name}")
+                            self.logger.warning(f"[v2.4] Download successful but rename failed - using original name: {newest_file.name}")
                             filename = newest_file.name
 
                         break
                     else:
-                        self.logger.warning(f"[v2.2] Downloaded file too small ({file_size} bytes), continuing to monitor...")
+                        self.logger.warning(f"[v2.4] Downloaded file too small ({file_size} bytes), continuing to monitor...")
                         try:
                             newest_file.unlink()  # Delete small file
                         except:
@@ -665,18 +831,18 @@ class MECReportScraper:
                     elapsed_time += check_interval
 
             # Close the PDF tab and return to original window
-            self.logger.info(f"[v2.2] Closing PDF tab and returning to original window")
+            self.logger.info(f"[v2.4] Closing PDF tab and returning to original window")
             self.driver.close()
             self.driver.switch_to.window(original_window)
 
             if download_detected:
                 return filename
             else:
-                self.logger.warning(f"[v2.2] Download monitoring timed out after {max_wait_time}s for report {report_id}")
+                self.logger.warning(f"[v2.4] Download monitoring timed out after {max_wait_time}s for report {report_id}")
                 return None
 
         except Exception as e:
-            self.logger.error(f"[v2.2] Error in download monitoring: {e}")
+            self.logger.error(f"[v2.4] Error in download monitoring: {e}")
             # Ensure we return to original window
             try:
                 if len(self.driver.window_handles) > 1:
@@ -701,7 +867,7 @@ class MECReportScraper:
         """
         for attempt in range(max_retries):
             try:
-                self.logger.info(f"[v2.2] Rename attempt {attempt + 1}/{max_retries}: '{source_file.name}' -> '{target_filename}'")
+                self.logger.info(f"[v2.4] Rename attempt {attempt + 1}/{max_retries}: '{source_file.name}' -> '{target_filename}'")
 
                 # Wait a moment for file to be fully written
                 time.sleep(2)
@@ -709,7 +875,7 @@ class MECReportScraper:
                 # If target file already exists, remove it first
                 if target_file.exists():
                     target_file.unlink()
-                    self.logger.info(f"[v2.2] Removed existing target file")
+                    self.logger.info(f"[v2.4] Removed existing target file")
 
                 # Attempt the rename
                 source_file.rename(target_file)
@@ -717,30 +883,29 @@ class MECReportScraper:
                 # Verify the rename worked
                 if target_file.exists() and not source_file.exists():
                     final_size = target_file.stat().st_size
-                    self.logger.info(f"[v2.2] RENAME SUCCESS: {target_filename} ({final_size:,} bytes)")
+                    self.logger.info(f"[v2.4] RENAME SUCCESS: {target_filename} ({final_size:,} bytes)")
                     return True
                 else:
-                    self.logger.warning(f"[v2.2] Rename verification failed on attempt {attempt + 1}")
+                    self.logger.warning(f"[v2.4] Rename verification failed on attempt {attempt + 1}")
 
             except PermissionError as e:
-                self.logger.warning(f"[v2.2] Permission error on attempt {attempt + 1}: {e}")
+                self.logger.warning(f"[v2.4] Permission error on attempt {attempt + 1}: {e}")
                 time.sleep(3)  # Wait longer for file locking to clear
 
             except FileNotFoundError as e:
-                self.logger.error(f"[v2.2] Source file disappeared during rename attempt {attempt + 1}: {e}")
+                self.logger.error(f"[v2.4] Source file disappeared during rename attempt {attempt + 1}: {e}")
                 return False
 
             except Exception as e:
-                self.logger.warning(f"[v2.2] Unexpected error on rename attempt {attempt + 1}: {e}")
+                self.logger.warning(f"[v2.4] Unexpected error on rename attempt {attempt + 1}: {e}")
                 time.sleep(2)
 
-        self.logger.error(f"[v2.2] Failed to rename file after {max_retries} attempts")
+        self.logger.error(f"[v2.4] Failed to rename file after {max_retries} attempts")
         return False
 
     def extract_all_reports_for_committee(self, committee_name: str, output_subdir: str = None) -> List[Dict]:
         """
         Complete workflow: search committee, get all reports
-        VERSION 2.2 - Fixed date extraction + configurable downloads
 
         Args:
             committee_name: Name of committee to search for
@@ -749,7 +914,7 @@ class MECReportScraper:
         Returns:
             List of found report information
         """
-        self.logger.info(f"[v2.2] Starting extraction for committee: {committee_name}")
+        self.logger.info(f"[v2.4] Starting extraction for committee: {committee_name}")
 
         # Search for committee
         search_results = self.search_committee(committee_name)
@@ -766,7 +931,7 @@ class MECReportScraper:
             # Save committee metadata
             self._save_committee_metadata(committee, self.output_dir)
 
-            # Get all reports for this committee (with configurable downloads)
+            # Get all reports for this committee
             if committee['committee_url']:
                 reports = self.get_committee_reports(committee['committee_url'], committee['committee_name'])
 
@@ -775,13 +940,13 @@ class MECReportScraper:
                     all_found_reports.append({
                         'committee': committee,
                         'report': report,
-                        'local_file': None,  # Would be set if download was successful
+                        'local_file': report.get('local_file'),  # Track downloaded files
                         'download_timestamp': datetime.now().isoformat()
                     })
             else:
                 self.logger.warning(f"No committee URL found for {committee['mecid']}")
 
-        self.logger.info(f"[v2.2] Extraction complete. Found {len(all_found_reports)} reports")
+        self.logger.info(f"[v2.4] Extraction complete. Found {len(all_found_reports)} reports")
         return all_found_reports
 
     def _save_committee_metadata(self, committee: Dict, committee_dir: Path):
@@ -792,7 +957,7 @@ class MECReportScraper:
         metadata = {
             **committee,
             'extraction_timestamp': datetime.now().isoformat(),
-            'scraper_version': '2.2'
+            'scraper_version': '2.4'
         }
 
         with open(metadata_file, 'w', encoding='utf-8') as f:
@@ -833,36 +998,4 @@ def extract_committee_reports(committee_name: str, output_dir: str = None, headl
         scraper.close()
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='MEC Report Scraper v2.2')
-    parser.add_argument('command', choices=['single'], help='Command to run')
-    parser.add_argument('committee_name', help='Name of committee to search for')
-    parser.add_argument('--no-headless', action='store_true', help='Run browser in visible mode')
-    parser.add_argument('--max-downloads', type=int, default=3, help='Maximum downloads per year (default: 3)')
-    parser.add_argument('--output-dir', help='Output directory for downloads')
-
-    args = parser.parse_args()
-
-    print(f"🏛️  Missouri Ethics Commission Campaign Finance Scraper")
-    print("=" * 60)
-    print(f"🔍 Extracting reports for: {args.committee_name}")
-    print(f"📁 Output directory: {args.output_dir or 'downloads'}")
-    print(f"🖥️  Headless mode: {not args.no_headless}")
-    print(f"⬇️  Max downloads per year: {args.max_downloads}")
-    print("-" * 50)
-
-    results = extract_committee_reports(
-        committee_name=args.committee_name,
-        output_dir=args.output_dir,
-        headless=not args.no_headless,
-        max_downloads=args.max_downloads
-    )
-
-    print(f"\n📊 Found {len(results)} reports:")
-    for result in results:
-        report = result['report']
-        print(f"  📄 {report['year']} - {report['report_name']} ({report['report_date']}) [ID: {report['report_id']}]")
-
-# VERSION: 2.2 - Fixed Date Extraction + Configurable Downloads - 2025-09-15
+# VERSION: 2.4 - Enhanced Multi-Year Detection - 2025-09-16

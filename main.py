@@ -6,6 +6,8 @@ This script provides different modes of operation:
 2. Batch committee extraction
 3. Data access strategy analysis
 4. Bulk data exploration
+
+VERSION: 2.3 - Updated 2025-09-15 - Added max-downloads support
 """
 
 import argparse
@@ -24,39 +26,42 @@ from bulk_data_access import MECBulkDataAccess, get_data_access_strategy
 from config import DOWNLOADS_DIR, SCRAPER_CONFIG
 
 
-def extract_single_committee(committee_name: str, headless: bool = True, output_dir: str = None) -> None:
+def extract_single_committee(committee_name: str, headless: bool = True, output_dir: str = None, max_downloads: int = 3) -> None:
     """Extract reports for a single committee"""
     print(f"🔍 Extracting reports for: {committee_name}")
     print(f"📁 Output directory: {output_dir or DOWNLOADS_DIR}")
     print(f"🖥️  Headless mode: {headless}")
+    print(f"⬇️  Max downloads per year: {max_downloads}")
     print("-" * 50)
 
     try:
         results = extract_committee_reports(
             committee_name=committee_name,
             output_dir=output_dir,
-            headless=headless
+            headless=headless,
+            max_downloads=max_downloads
         )
 
         if results:
-            print(f"\n✅ Successfully downloaded {len(results)} reports:")
+            print(f"\n✅ Successfully found {len(results)} reports:")
             for result in results:
-                committee_name = result['committee']['committee_name']
-                report_name = result['report']['report_name']
-                year = result['report']['year']
-                file_path = result['local_file']
-                print(f"   📄 {committee_name} - {year} - {report_name}")
-                print(f"      📂 {file_path}")
+                committee = result['committee']['committee_name']
+                report = result['report']
+                print(f"   📄 {committee} - {report['year']} - {report['report_name']} ({report['report_date']})")
+                if result.get('local_file'):
+                    print(f"      📂 Downloaded: {result['local_file']}")
+                else:
+                    print(f"      📄 Report ID: {report['report_id']}")
         else:
             print(f"\n❌ No reports found for '{committee_name}'")
             print("   💡 Try checking the committee name spelling or search on the MEC website first")
 
     except Exception as e:
         print(f"\n❌ Error during extraction: {e}")
-        print("   💡 Try running with --debug flag for more information")
+        print("   💡 Try running with --no-headless flag to see what's happening in the browser")
 
 
-def extract_batch_committees(committee_file: str, headless: bool = True, output_dir: str = None) -> None:
+def extract_batch_committees(committee_file: str, headless: bool = True, output_dir: str = None, max_downloads: int = 3) -> None:
     """Extract reports for multiple committees from a file"""
     committee_file_path = Path(committee_file)
 
@@ -74,6 +79,7 @@ def extract_batch_committees(committee_file: str, headless: bool = True, output_
 
     print(f"📋 Found {len(committees)} committees to process")
     print(f"📁 Output directory: {output_dir or DOWNLOADS_DIR}")
+    print(f"⬇️  Max downloads per committee per year: {max_downloads}")
     print("-" * 50)
 
     total_reports = 0
@@ -86,13 +92,19 @@ def extract_batch_committees(committee_file: str, headless: bool = True, output_
             results = extract_committee_reports(
                 committee_name=committee_name,
                 output_dir=output_dir,
-                headless=headless
+                headless=headless,
+                max_downloads=max_downloads
             )
 
             if results:
-                print(f"   ✅ Downloaded {len(results)} reports")
+                print(f"   ✅ Found {len(results)} reports")
                 total_reports += len(results)
                 successful_committees += 1
+
+                # Show downloaded files
+                downloaded = [r for r in results if r.get('local_file')]
+                if downloaded:
+                    print(f"   📄 Downloaded {len(downloaded)} files")
             else:
                 print(f"   ⚠️  No reports found")
 
@@ -101,7 +113,7 @@ def extract_batch_committees(committee_file: str, headless: bool = True, output_
 
     print(f"\n📊 Batch processing complete:")
     print(f"   ✅ Successful committees: {successful_committees}/{len(committees)}")
-    print(f"   📄 Total reports downloaded: {total_reports}")
+    print(f"   📄 Total reports found: {total_reports}")
 
 
 def analyze_data_strategy(committee_name: str) -> None:
@@ -121,61 +133,49 @@ def analyze_data_strategy(committee_name: str) -> None:
             print(f"     URL: {alt_method['url']}")
             print(f"     Use case: {alt_method['use_case']}")
 
-        print(f"\n📊 Bulk Data Endpoint Status:")
-        for endpoint, status in strategy['bulk_data_status'].items():
-            status_icon = "✅" if status['accessible'] else "❌"
-            print(f"   {status_icon} {endpoint}")
+        print(f"\n📊 Bulk Data Endpoints:")
+        if strategy['bulk_data_endpoints']:
+            for endpoint in strategy['bulk_data_endpoints']:
+                print(f"   • {endpoint['name']}: {endpoint['url']}")
+                print(f"     Description: {endpoint['description']}")
+        else:
+            print("   No bulk data endpoints available for this committee type")
 
-        print(f"\n🎯 Coverage Analysis:")
-        coverage = strategy['coverage_analysis']
-        for source in coverage['potential_sources']:
-            print(f"   • {source['source']}: {source['likelihood']} likelihood")
-            print(f"     Reason: {source['reason']}")
-
-        print(f"\n💡 Recommendations:")
-        for rec in coverage['recommendations']:
-            print(f"   • {rec}")
+        print(f"\n💡 Recommendation:")
+        print(f"   {strategy['recommendation']}")
 
     except Exception as e:
-        print(f"❌ Error during analysis: {e}")
+        print(f"❌ Error analyzing data strategy: {e}")
 
 
 def explore_bulk_data() -> None:
     """Explore available bulk data options"""
-    print("🔍 Exploring MEC bulk data options...")
+    print("🔍 Exploring MEC Bulk Data Access Options")
     print("-" * 50)
 
     try:
         bulk_access = MECBulkDataAccess()
+        available_endpoints = bulk_access.get_available_endpoints()
 
-        # Check CSV endpoints
-        print("📊 Checking MEC CSV endpoints:")
-        csv_status = bulk_access.check_mec_csv_endpoints()
-        accessible_count = sum(1 for status in csv_status.values() if status.get('accessible', False))
+        print(f"\n📊 Available Data Sources ({len(available_endpoints)} found):")
 
-        for endpoint, status in csv_status.items():
-            status_icon = "✅" if status['accessible'] else "❌"
-            print(f"   {status_icon} {endpoint}")
-            if status.get('error'):
-                print(f"      Error: {status['error']}")
+        for endpoint in available_endpoints:
+            print(f"\n• {endpoint['name']}")
+            print(f"  URL: {endpoint['url']}")
+            print(f"  Method: {endpoint['method']}")
+            print(f"  Description: {endpoint['description']}")
 
-        print(f"\n📈 Summary: {accessible_count}/{len(csv_status)} endpoints accessible")
-
-        # Show alternative sources
-        print(f"\n🌐 Alternative Data Sources:")
-        alt_sources = bulk_access.get_alternative_data_sources()
-        for source_key, source_info in alt_sources.items():
-            api_status = "✅ API Available" if source_info.get('api_available') else "❌ No API"
-            print(f"   • {source_info['name']} - {api_status}")
-            print(f"     {source_info['description']}")
-            print(f"     URL: {source_info['url']}")
-
-        # Show Accountability Project info
-        print(f"\n📚 Accountability Project Data:")
-        ap_info = bulk_access.get_accountability_project_info()
-        print(f"   Coverage: {ap_info['coverage']}")
-        print(f"   Data types: {', '.join(ap_info['data_types'])}")
-        print(f"   GitHub: {ap_info['github_repo']}")
+            # Test endpoint accessibility
+            try:
+                ap_info = bulk_access.get_api_info(endpoint['url'])
+                print(f"  ✅ Status: Accessible")
+                if ap_info:
+                    print(f"   Coverage: {ap_info.get('coverage', 'Unknown')}")
+                    print(f"   Data types: {', '.join(ap_info.get('data_types', []))}")
+                    if ap_info.get('github_repo'):
+                        print(f"   GitHub: {ap_info['github_repo']}")
+            except Exception as api_e:
+                print(f"  ⚠️  Status: {api_e}")
 
     except Exception as e:
         print(f"❌ Error exploring bulk data: {e}")
@@ -207,12 +207,13 @@ def create_sample_committee_file() -> None:
 def main():
     """Main CLI interface"""
     parser = argparse.ArgumentParser(
-        description="Missouri Ethics Commission Campaign Finance Scraper",
+        description="Missouri Ethics Commission Campaign Finance Scraper v2.3",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python main.py single "Francis Howell Families"
-  python main.py single "Missouri Republican Party" --no-headless --output ./reports
+  python main.py single "Missouri Republican Party" --no-headless --output ./reports --max-downloads 10
+  python main.py single "Francis Howell Families" --max-downloads 999  # Download all files
   python main.py batch committees.txt
   python main.py strategy "Francis Howell Families"
   python main.py explore
@@ -227,12 +228,14 @@ Examples:
     single_parser.add_argument('committee_name', help='Name of the committee to search for')
     single_parser.add_argument('--output', '-o', help='Output directory for downloads')
     single_parser.add_argument('--no-headless', action='store_true', help='Show browser window (for debugging)')
+    single_parser.add_argument('--max-downloads', type=int, default=3, help='Maximum downloads per year (default: 3, use 999 for all)')
 
     # Batch committee extraction
     batch_parser = subparsers.add_parser('batch', help='Extract reports for multiple committees')
     batch_parser.add_argument('committee_file', help='File containing committee names (one per line)')
     batch_parser.add_argument('--output', '-o', help='Output directory for downloads')
     batch_parser.add_argument('--no-headless', action='store_true', help='Show browser window (for debugging)')
+    batch_parser.add_argument('--max-downloads', type=int, default=3, help='Maximum downloads per committee per year (default: 3)')
 
     # Strategy analysis
     strategy_parser = subparsers.add_parser('strategy', help='Analyze data access strategy for a committee')
@@ -251,7 +254,7 @@ Examples:
         parser.print_help()
         return
 
-    print("🏛️  Missouri Ethics Commission Campaign Finance Scraper")
+    print("🏛️  Missouri Ethics Commission Campaign Finance Scraper v2.3")
     print("=" * 60)
 
     try:
@@ -259,14 +262,16 @@ Examples:
             extract_single_committee(
                 committee_name=args.committee_name,
                 headless=not args.no_headless,
-                output_dir=args.output
+                output_dir=args.output,
+                max_downloads=args.max_downloads
             )
 
         elif args.command == 'batch':
             extract_batch_committees(
                 committee_file=args.committee_file,
                 headless=not args.no_headless,
-                output_dir=args.output
+                output_dir=args.output,
+                max_downloads=args.max_downloads
             )
 
         elif args.command == 'strategy':
