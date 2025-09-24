@@ -4,24 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="more pauses added">
-      <change afterPath="$PROJECT_DIR$/step1_search.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step1_simple.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step2_reports.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step3_stealth.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step4_expand.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step5_download.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step6_file_check.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_simple.py" afterDir="false" />
+    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="cleaned up">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/debug_report_table.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/debug_screenshot.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/debug_selenium.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/debug_year_sections.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/enhanced_stealth_main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/mec_scraper.log" beforeDir="false" afterPath="$PROJECT_DIR$/logs/mec_scraper.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mec_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/mec_scraper.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/stealth_main.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/step6_file_check.py" beforeDir="false" afterPath="$PROJECT_DIR$/step6_file_check.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -256,7 +241,23 @@
       <option name="project" value="LOCAL" />
       <updated>1758058066559</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="on to step 6 - step 5 works">
+      <option name="closed" value="true" />
+      <created>1758671903978</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1758671903978</updated>
+    </task>
+    <task id="LOCAL-00007" summary="cleaned up">
+      <option name="closed" value="true" />
+      <created>1758672115315</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1758672115315</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -265,6 +266,8 @@
     <MESSAGE value="commit for visibility - almost done" />
     <MESSAGE value="stealth approaches tried" />
     <MESSAGE value="more pauses added" />
-    <option name="LAST_COMMIT_MESSAGE" value="more pauses added" />
+    <MESSAGE value="on to step 6 - step 5 works" />
+    <MESSAGE value="cleaned up" />
+    <option name="LAST_COMMIT_MESSAGE" value="cleaned up" />
   </component>
 </project>
