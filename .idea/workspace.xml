@@ -4,13 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="stealth approaches tried">
-      <change afterPath="$PROJECT_DIR$/enhanced_stealth_main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stealth_main.py" afterDir="false" />
+    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="more pauses added">
+      <change afterPath="$PROJECT_DIR$/step1_search.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step1_simple.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step2_reports.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step3_stealth.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step4_expand.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step5_download.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/step6_file_check.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test_simple.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_report_table.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_screenshot.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_selenium.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/debug_year_sections.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/enhanced_stealth_main.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/logs/mec_scraper.log" beforeDir="false" afterPath="$PROJECT_DIR$/logs/mec_scraper.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mec_scraper.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/mec_scraper.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stealth_main.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,13 +54,16 @@
   "associatedIndex": 0
 }]]></component>
   <component name="ProjectId" id="32k5cMJBo5gIhd8PTuhY2ZAV926" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Python.step1_search.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
@@ -70,6 +84,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="step1_search" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="mec-campaign-finance-scraper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/step1_search.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -158,6 +194,11 @@
       <option name="USE_PATTERN" value="false" />
       <method v="2" />
     </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.step1_search" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -207,7 +248,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758044338283</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="more pauses added">
+      <option name="closed" value="true" />
+      <created>1758058066559</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1758058066559</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -215,6 +264,7 @@
     <MESSAGE value="opens document" />
     <MESSAGE value="commit for visibility - almost done" />
     <MESSAGE value="stealth approaches tried" />
-    <option name="LAST_COMMIT_MESSAGE" value="stealth approaches tried" />
+    <MESSAGE value="more pauses added" />
+    <option name="LAST_COMMIT_MESSAGE" value="more pauses added" />
   </component>
 </project>
