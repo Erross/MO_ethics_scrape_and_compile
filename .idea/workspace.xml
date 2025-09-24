@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="step 6 working">
-      <change afterPath="$PROJECT_DIR$/debug_download.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/step7_all_reports.py" afterDir="false" />
+    <list default="true" id="83bd75da-5aa1-4984-9b01-4d06f1d0baa1" name="Changes" comment="reverting to 4 - 5 and 6 were not pulling working pdfs">
+      <change afterPath="$PROJECT_DIR$/step5_download.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/step6_file_check.py" beforeDir="false" afterPath="$PROJECT_DIR$/step6_file_check.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -267,7 +265,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758673804715</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="reverting to 4 - 5 and 6 were not pulling working pdfs">
+      <option name="closed" value="true" />
+      <created>1758724602140</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1758724602140</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -279,6 +285,7 @@
     <MESSAGE value="on to step 6 - step 5 works" />
     <MESSAGE value="cleaned up" />
     <MESSAGE value="step 6 working" />
-    <option name="LAST_COMMIT_MESSAGE" value="step 6 working" />
+    <MESSAGE value="reverting to 4 - 5 and 6 were not pulling working pdfs" />
+    <option name="LAST_COMMIT_MESSAGE" value="reverting to 4 - 5 and 6 were not pulling working pdfs" />
   </component>
 </project>
